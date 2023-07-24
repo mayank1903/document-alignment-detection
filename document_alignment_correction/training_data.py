@@ -43,7 +43,7 @@ rotated_folder_path = os.path.join('data/rotated_images', train_test)
 # %%
 
 
-# angles = [random.randint(40, 360) for _ in range(10)]
+angles = [angle for angle in (random.randint(40, 359) for _ in range(10)) if angle % 90 != 0]
 
 
 # %%
@@ -53,46 +53,49 @@ rotated_angle = []
 import random
 from collections import Counter
 
-def rotated_data_creation(folder_path, angle_list=[0,90,180,270]):
-    # Count the occurrences of each angle in the rotated_angle list
-    angle_counts = Counter(rotated_angle)
+def rotated_data_creation(folder_path):
+    angle_ranges = [(0, 90), (90, 180), (180, 270), (270, 360)]  # Define angle ranges
+    angle_counts = Counter()
     num_images = len(os.listdir(folder_path))
-    min_angle_count = num_images // len(angle_list)
+    min_angle_count = num_images // len(angle_ranges)
 
     for idx, imagename in enumerate(tqdm(os.listdir(folder_path))):
         if imagename.split(".")[-1] != "ipynb_checkpoints":
+            # Check if any angle range needs to be removed
+            for angle_range in angle_ranges:
+                if angle_counts.get(angle_range, 0) > min_angle_count:
+                    angle_ranges.remove(angle_range)
+
+            # Select a random angle range from the updated angle_ranges
+            angle_range = random.choice(angle_ranges)
+
+            # Generate a random angle within the selected range
+            angle = random.randint(angle_range[0], angle_range[1])
+
             img_path = os.path.join(folder_path, imagename)
             image = Image.open(img_path)
 
-            # Check if any angle needs to be removed from angle_list
-            for angle in angle_list:
-                if angle_counts.get(angle, 0) > min_angle_count:
-                    angle_list.remove(angle)
-
-            # Select a random angle from the updated angle_list
-            angle = random.choice(angle_list)
-
             # Rotate the image by the selected angle
-            _, rotated_image = rotateImage(np.array(image), angle)
+            rotated_image = image.rotate(angle, expand=True)
 
             # Image extension
             ext = img_path.split(".")[-1]
 
             # Save the rotated image
             output_path = os.path.join(rotated_folder_path, "{}_{}.{}".format(imagename.split(".")[0], angle, ext))
-            # rotated_image.save(output_path)
-            io.imsave(output_path, rotated_image)
+            rotated_image.save(output_path)
 
             # Append the values
             images_path.append(output_path)
             rotated_angle.append(angle)
 
-            # Increment the count of the selected angle
-            angle_counts[angle] += 1
+            # Increment the count of the selected angle range
+            angle_counts[angle_range] += 1
         else:
             continue
 
     return images_path, rotated_angle
+
 
 
 # %%

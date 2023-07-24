@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import os
 from tqdm import tqdm
-from constants import label_mapping
+from constants import label_mapping, device
 
 class DocumentAlignmentNet(nn.Module):
     def __init__(self):
@@ -13,50 +13,49 @@ class DocumentAlignmentNet(nn.Module):
             nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout(0.2),  # Dropout after the first convolutional layer
+            nn.Dropout2d(0.2),
 
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout(0.2),  # Dropout after the second convolutional layer
+            nn.Dropout2d(0.2),
 
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout(0.2),  # Dropout after the third convolutional layer
+            nn.Dropout2d(0.2),
 
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout(0.2),  # Dropout after the fourth convolutional layer
+            nn.Dropout2d(0.2),
         )
 
         self.linear_layers = nn.Sequential(
             nn.Linear(512 * 8 * 8, 256),
             nn.ReLU(),
-            nn.Dropout(0.2),  # Dropout before the first linear layer
+            nn.Dropout(0.2),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Dropout(0.2),  # Dropout before the second linear layer
-            nn.Linear(128, 4)  # Assuming 4 output classes for the alignment angles (0, 90, 180, 270)
+            nn.Dropout(0.2),
+            nn.Linear(128, 4),  # Output layer with a single neuron for regression
         )
-
-        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.conv_layers(x)
         x = x.view(x.size(0), -1)
         x = self.linear_layers(x)
-        x = self.softmax(x)
         return x
-    
+
     def predict(self, x):
+        x = x.unsqueeze(0)
         x = self.forward(x)
         _, preds = torch.max(x, 1)
         return preds
+
 
 def train_cnn(model, criterion, optimizer, train_loader, epoch, writer=None):
 
@@ -100,7 +99,7 @@ def train_cnn(model, criterion, optimizer, train_loader, epoch, writer=None):
     torch.save(model.state_dict(), save_path)
 
     # print("Model saved successfully!")
-    
+    # 
     return train_loss, train_accuracy
 
 def evaluate_cnn(model, criterion, test_loader, epoch, writer=None):
@@ -127,6 +126,6 @@ def evaluate_cnn(model, criterion, test_loader, epoch, writer=None):
 
         accuracy = total_correct / total_samples
         val_loss /= len(test_loader)
-    
+    # 
     return val_loss, accuracy
 
